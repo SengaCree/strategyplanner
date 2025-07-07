@@ -50,6 +50,9 @@
         .btn-add { background: linear-gradient(135deg, #7c3aed, #ec4899); color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; margin-bottom: 20px; }
         .btn-delete { background: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; }
         .btn-delete:hover { background: #dc2626; }
+        .download-btn { background: #10b981; color: white; padding: 15px 20px; border: none; border-radius: 8px; cursor: pointer; margin: 5px; font-size: 16px; }
+        .download-btn:hover { background: #059669; }
+        .save-notice { background: #fef3c7; border: 1px solid #fbbf24; color: #92400e; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #e5e7eb; padding: 12px; text-align: left; }
         th { background: linear-gradient(135deg, #7c3aed, #ec4899); color: white; }
@@ -81,6 +84,10 @@
     <!-- Main App -->
     <div id="appContent" class="app-content">
         <div class="container">
+            <div class="save-notice">
+                <strong>💡 Important:</strong> Your work is not automatically saved. Use the "Download Plan" button to save your progress!
+            </div>
+            
             <div class="header">
                 <h1>Quarterly Business Planning Tool</h1>
                 <p>Strategic clarity for accelerated growth</p>
@@ -91,6 +98,7 @@
                 <button class="tab" onclick="showTab('launches')">🎯 Monthly Launches</button>
                 <button class="tab" onclick="showTab('strategy')">📅 90-Day Strategy</button>
                 <button class="tab" onclick="showTab('weekly')">⏰ Weekly Structure</button>
+                <button class="tab" onclick="downloadPlan()" style="background: #10b981; color: white;">💾 Download Plan</button>
             </div>
 
             <div class="content">
@@ -305,6 +313,182 @@
             `;
             container.appendChild(newOffer);
             updateDeleteButtons();
+        }
+
+        // Download functionality
+        function downloadPlan() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                offers: [],
+                monthlyPlans: [],
+                strategy: [],
+                weeklyStructure: []
+            };
+
+            // Collect offers data
+            const offers = document.querySelectorAll('.offer-item');
+            offers.forEach(offer => {
+                const inputs = offer.querySelectorAll('input');
+                if (inputs.length >= 3) {
+                    data.offers.push({
+                        name: inputs[0].value,
+                        price: inputs[1].value,
+                        frequency: inputs[2].value,
+                        revenue: (parseFloat(inputs[1].value) || 0) * (parseInt(inputs[2].value) || 0)
+                    });
+                }
+            });
+
+            // Collect monthly plans data
+            const monthlyRows = document.querySelectorAll('#monthlyTable tr');
+            monthlyRows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 5) {
+                    data.monthlyPlans.push({
+                        month: cells[0].textContent,
+                        primaryOffer: cells[1].querySelector('input').value,
+                        secondaryOffer: cells[2].querySelector('input').value,
+                        passiveOffer: cells[3].querySelector('input').value,
+                        notes: cells[4].querySelector('textarea').value
+                    });
+                }
+            });
+
+            // Collect strategy data
+            const strategyMonths = document.querySelectorAll('.strategy-month');
+            strategyMonths.forEach((month, index) => {
+                const textareas = month.querySelectorAll('textarea');
+                data.strategy.push({
+                    month: `Month ${index + 1}`,
+                    financial: textareas[0].value,
+                    delivery: textareas[1].value,
+                    creating: textareas[2].value,
+                    selling: textareas[3].value,
+                    audience: textareas[4].value
+                });
+            });
+
+            // Collect weekly structure data
+            const weeklyRows = document.querySelectorAll('#weeklyTable tr');
+            weeklyRows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 3) {
+                    data.weeklyStructure.push({
+                        day: cells[0].textContent,
+                        morning: cells[1].querySelector('textarea').value,
+                        afternoon: cells[2].querySelector('textarea').value
+                    });
+                }
+            });
+
+            // Create downloadable file
+            const jsonData = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `quarterly-business-plan-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            // Also create a readable PDF-style text version
+            createReadableDownload(data);
+        }
+
+        function createReadableDownload(data) {
+            let content = `QUARTERLY BUSINESS PLANNING TOOL
+Generated: ${new Date().toLocaleDateString()}
+
+════════════════════════════════════════════════
+
+📊 CAPACITY PLANNER
+════════════════════════════════════════════════
+
+`;
+
+            // Add offers
+            data.offers.forEach((offer, index) => {
+                content += `Offer ${index + 1}: ${offer.name || 'Unnamed Offer'}
+Price: £${offer.price || 0}
+Frequency per year: ${offer.frequency || 0}
+Annual Revenue: £${offer.revenue.toLocaleString()}
+
+`;
+            });
+
+            const totalRevenue = data.offers.reduce((sum, offer) => sum + offer.revenue, 0);
+            content += `TOTAL ANNUAL REVENUE PROJECTION: £${totalRevenue.toLocaleString()}
+
+════════════════════════════════════════════════
+
+🎯 MONTHLY LAUNCH STRATEGY
+════════════════════════════════════════════════
+
+`;
+
+            data.monthlyPlans.forEach(plan => {
+                content += `${plan.month}:
+Primary Offer: ${plan.primaryOffer}
+Secondary Offer: ${plan.secondaryOffer}
+Passive/Ongoing: ${plan.passiveOffer}
+Strategy Notes: ${plan.notes}
+
+`;
+            });
+
+            content += `════════════════════════════════════════════════
+
+📅 90-DAY STRATEGIC FOCUS
+════════════════════════════════════════════════
+
+`;
+
+            data.strategy.forEach(month => {
+                content += `${month.month}:
+
+Financial Goal: ${month.financial}
+Delivery Focus: ${month.delivery}
+Creating Priority: ${month.creating}
+Selling Strategy: ${month.selling}
+Audience Growth: ${month.audience}
+
+`;
+            });
+
+            content += `════════════════════════════════════════════════
+
+⏰ WEEKLY STRUCTURE DESIGN
+════════════════════════════════════════════════
+
+`;
+
+            data.weeklyStructure.forEach(day => {
+                content += `${day.day}:
+Morning Focus: ${day.morning}
+Afternoon/Evening Focus: ${day.afternoon}
+
+`;
+            });
+
+            content += `
+════════════════════════════════════════════════
+© Senga Cree Coaching - Strategic Business Planning Tool
+════════════════════════════════════════════════`;
+
+            // Download readable version
+            const textBlob = new Blob([content], { type: 'text/plain' });
+            const textUrl = URL.createObjectURL(textBlob);
+            
+            const textLink = document.createElement('a');
+            textLink.href = textUrl;
+            textLink.download = `quarterly-business-plan-readable-${new Date().toISOString().split('T')[0]}.txt`;
+            document.body.appendChild(textLink);
+            textLink.click();
+            document.body.removeChild(textLink);
+            URL.revokeObjectURL(textUrl);
         }
 
         function removeOffer(button) {
