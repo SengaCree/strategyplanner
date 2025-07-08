@@ -98,7 +98,21 @@
                 <button class="tab" onclick="showTab('launches')">🎯 Monthly Launches</button>
                 <button class="tab" onclick="showTab('strategy')">📅 90-Day Strategy</button>
                 <button class="tab" onclick="showTab('weekly')">⏰ Weekly Structure</button>
-                <button class="tab" onclick="downloadPlan()" style="background: #10b981; color: white;">💾 Download Plan</button>
+                <button class="tab" onclick="showDownloadOptions()" style="background: #10b981; color: white;">💾 Download</button>
+            </div>
+
+            <!-- Download Options Modal -->
+            <div id="downloadModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 10px; max-width: 500px; width: 90%;">
+                    <h3 style="margin-top: 0; color: #1f2937;">Choose Your Download Format</h3>
+                    <div style="margin: 20px 0;">
+                        <button onclick="downloadPDF()" class="btn-primary" style="margin: 10px 0; background: #dc2626;">📄 Professional PDF Report</button>
+                        <button onclick="downloadWordDoc()" class="btn-primary" style="margin: 10px 0; background: #2563eb;">📝 Word Document</button>
+                        <button onclick="downloadSimpleText()" class="btn-primary" style="margin: 10px 0; background: #059669;">📋 Simple Text Plan</button>
+                        <button onclick="downloadSpreadsheet()" class="btn-primary" style="margin: 10px 0; background: #7c3aed;">📊 Excel-style CSV</button>
+                    </div>
+                    <button onclick="closeDownloadModal()" style="background: #6b7280; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; float: right;">Close</button>
+                </div>
             </div>
 
             <div class="content">
@@ -316,9 +330,17 @@
         }
 
         // Download functionality
-        function downloadPlan() {
+        function showDownloadOptions() {
+            document.getElementById('downloadModal').style.display = 'block';
+        }
+
+        function closeDownloadModal() {
+            document.getElementById('downloadModal').style.display = 'none';
+        }
+
+        function collectAllData() {
             const data = {
-                timestamp: new Date().toISOString(),
+                timestamp: new Date().toLocaleDateString('en-GB'),
                 offers: [],
                 monthlyPlans: [],
                 strategy: [],
@@ -331,9 +353,9 @@
                 const inputs = offer.querySelectorAll('input');
                 if (inputs.length >= 3) {
                     data.offers.push({
-                        name: inputs[0].value,
-                        price: inputs[1].value,
-                        frequency: inputs[2].value,
+                        name: inputs[0].value || 'Unnamed Offer',
+                        price: inputs[1].value || '0',
+                        frequency: inputs[2].value || '0',
                         revenue: (parseFloat(inputs[1].value) || 0) * (parseInt(inputs[2].value) || 0)
                     });
                 }
@@ -346,10 +368,10 @@
                 if (cells.length >= 5) {
                     data.monthlyPlans.push({
                         month: cells[0].textContent,
-                        primaryOffer: cells[1].querySelector('input').value,
-                        secondaryOffer: cells[2].querySelector('input').value,
-                        passiveOffer: cells[3].querySelector('input').value,
-                        notes: cells[4].querySelector('textarea').value
+                        primaryOffer: cells[1].querySelector('input').value || '',
+                        secondaryOffer: cells[2].querySelector('input').value || '',
+                        passiveOffer: cells[3].querySelector('input').value || '',
+                        notes: cells[4].querySelector('textarea').value || ''
                     });
                 }
             });
@@ -360,11 +382,11 @@
                 const textareas = month.querySelectorAll('textarea');
                 data.strategy.push({
                     month: `Month ${index + 1}`,
-                    financial: textareas[0].value,
-                    delivery: textareas[1].value,
-                    creating: textareas[2].value,
-                    selling: textareas[3].value,
-                    audience: textareas[4].value
+                    financial: textareas[0].value || '',
+                    delivery: textareas[1].value || '',
+                    creating: textareas[2].value || '',
+                    selling: textareas[3].value || '',
+                    audience: textareas[4].value || ''
                 });
             });
 
@@ -375,120 +397,324 @@
                 if (cells.length >= 3) {
                     data.weeklyStructure.push({
                         day: cells[0].textContent,
-                        morning: cells[1].querySelector('textarea').value,
-                        afternoon: cells[2].querySelector('textarea').value
+                        morning: cells[1].querySelector('textarea').value || '',
+                        afternoon: cells[2].querySelector('textarea').value || ''
                     });
                 }
             });
 
-            // Create downloadable file
-            const jsonData = JSON.stringify(data, null, 2);
-            const blob = new Blob([jsonData], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `quarterly-business-plan-${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            // Also create a readable PDF-style text version
-            createReadableDownload(data);
+            return data;
         }
 
-        function createReadableDownload(data) {
-            let content = `QUARTERLY BUSINESS PLANNING TOOL
-Generated: ${new Date().toLocaleDateString()}
+        function downloadPDF() {
+            const data = collectAllData();
+            const totalRevenue = data.offers.reduce((sum, offer) => sum + offer.revenue, 0);
+            
+            let content = `<!DOCTYPE html>
+<html><head>
+<title>Quarterly Business Plan</title>
+<style>
+body { font-family: Arial, sans-serif; line-height: 1.6; margin: 40px; color: #333; }
+.header { text-align: center; border-bottom: 3px solid #7c3aed; padding-bottom: 20px; margin-bottom: 30px; }
+.section { margin-bottom: 40px; page-break-inside: avoid; }
+.section-title { background: #7c3aed; color: white; padding: 15px; margin: 20px 0 10px 0; font-size: 18px; font-weight: bold; }
+.offer-box { background: #f8fafc; border-left: 4px solid #10b981; padding: 15px; margin: 10px 0; }
+.revenue-highlight { background: #dcfce7; border: 2px solid #10b981; padding: 20px; text-align: center; margin: 20px 0; }
+.month-row { background: #f9fafb; padding: 10px; margin: 5px 0; border-left: 3px solid #ec4899; }
+.strategy-box { background: #f0f9ff; padding: 15px; margin: 10px 0; border-radius: 8px; }
+.day-schedule { background: #fdf2f8; padding: 10px; margin: 5px 0; border-radius: 5px; }
+table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+th { background: #7c3aed; color: white; }
+.footer { text-align: center; margin-top: 50px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; }
+@media print { body { margin: 20px; } .section { page-break-inside: avoid; } }
+</style>
+</head><body>
 
-════════════════════════════════════════════════
+<div class="header">
+<h1>QUARTERLY BUSINESS PLAN</h1>
+<p>Strategic Planning Document | Generated: ${data.timestamp}</p>
+</div>
 
-📊 CAPACITY PLANNER
-════════════════════════════════════════════════
+<div class="section">
+<div class="section-title">📊 CAPACITY PLANNER & REVENUE PROJECTION</div>`;
 
-`;
-
-            // Add offers
             data.offers.forEach((offer, index) => {
-                content += `Offer ${index + 1}: ${offer.name || 'Unnamed Offer'}
-Price: £${offer.price || 0}
-Frequency per year: ${offer.frequency || 0}
-Annual Revenue: £${offer.revenue.toLocaleString()}
-
-`;
+                content += `
+<div class="offer-box">
+<strong>${offer.name}</strong><br>
+Price: £${offer.price} | Frequency: ${offer.frequency} times/year<br>
+<strong>Annual Revenue: £${offer.revenue.toLocaleString()}</strong>
+</div>`;
             });
 
-            const totalRevenue = data.offers.reduce((sum, offer) => sum + offer.revenue, 0);
-            content += `TOTAL ANNUAL REVENUE PROJECTION: £${totalRevenue.toLocaleString()}
+            content += `
+<div class="revenue-highlight">
+<h2>TOTAL ANNUAL REVENUE PROJECTION</h2>
+<h1 style="color: #10b981; margin: 10px 0;">£${totalRevenue.toLocaleString()}</h1>
+</div>
+</div>
 
-════════════════════════════════════════════════
-
-🎯 MONTHLY LAUNCH STRATEGY
-════════════════════════════════════════════════
-
-`;
+<div class="section">
+<div class="section-title">🎯 MONTHLY LAUNCH STRATEGY</div>`;
 
             data.monthlyPlans.forEach(plan => {
-                content += `${plan.month}:
-Primary Offer: ${plan.primaryOffer}
-Secondary Offer: ${plan.secondaryOffer}
-Passive/Ongoing: ${plan.passiveOffer}
-Strategy Notes: ${plan.notes}
-
-`;
+                if (plan.primaryOffer || plan.secondaryOffer || plan.passiveOffer || plan.notes) {
+                    content += `
+<div class="month-row">
+<strong>${plan.month}</strong><br>
+Primary: ${plan.primaryOffer}<br>
+Secondary: ${plan.secondaryOffer}<br>
+Passive: ${plan.passiveOffer}<br>
+Notes: ${plan.notes}
+</div>`;
+                }
             });
 
-            content += `════════════════════════════════════════════════
+            content += `
+</div>
 
-📅 90-DAY STRATEGIC FOCUS
-════════════════════════════════════════════════
-
-`;
+<div class="section">
+<div class="section-title">📅 90-DAY STRATEGIC FOCUS</div>`;
 
             data.strategy.forEach(month => {
-                content += `${month.month}:
-
-Financial Goal: ${month.financial}
-Delivery Focus: ${month.delivery}
-Creating Priority: ${month.creating}
-Selling Strategy: ${month.selling}
-Audience Growth: ${month.audience}
-
-`;
+                if (month.financial || month.delivery || month.creating || month.selling || month.audience) {
+                    content += `
+<div class="strategy-box">
+<h3>${month.month}</h3>
+<p><strong>Financial Goal:</strong> ${month.financial}</p>
+<p><strong>Delivery Focus:</strong> ${month.delivery}</p>
+<p><strong>Creating Priority:</strong> ${month.creating}</p>
+<p><strong>Selling Strategy:</strong> ${month.selling}</p>
+<p><strong>Audience Growth:</strong> ${month.audience}</p>
+</div>`;
+                }
             });
 
-            content += `════════════════════════════════════════════════
+            content += `
+</div>
 
-⏰ WEEKLY STRUCTURE DESIGN
-════════════════════════════════════════════════
-
-`;
+<div class="section">
+<div class="section-title">⏰ WEEKLY STRUCTURE DESIGN</div>`;
 
             data.weeklyStructure.forEach(day => {
-                content += `${day.day}:
-Morning Focus: ${day.morning}
-Afternoon/Evening Focus: ${day.afternoon}
+                if (day.morning || day.afternoon) {
+                    content += `
+<div class="day-schedule">
+<strong>${day.day}</strong><br>
+Morning: ${day.morning}<br>
+Afternoon/Evening: ${day.afternoon}
+</div>`;
+                }
+            });
 
+            content += `
+</div>
+
+<div class="footer">
+<p>© Senga Cree Coaching - Strategic Business Planning Tool</p>
+<p>This document contains your personalized quarterly business strategy</p>
+</div>
+
+</body></html>`;
+
+            const blob = new Blob([content], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Quarterly-Business-Plan-${data.timestamp.replace(/\//g, '-')}.html`;
+            a.click();
+            URL.revokeObjectURL(url);
+            closeDownloadModal();
+        }
+
+        function downloadWordDoc() {
+            const data = collectAllData();
+            const totalRevenue = data.offers.reduce((sum, offer) => sum + offer.revenue, 0);
+            
+            let content = `QUARTERLY BUSINESS PLAN
+Strategic Planning Document
+Generated: ${data.timestamp}
+
+═══════════════════════════════════════════════════════════════════
+
+📊 CAPACITY PLANNER & REVENUE PROJECTION
+═══════════════════════════════════════════════════════════════════
+
+OFFERS OVERVIEW:
+`;
+
+            data.offers.forEach((offer, index) => {
+                content += `
+${index + 1}. ${offer.name}
+   Price: £${offer.price}
+   Frequency: ${offer.frequency} times per year
+   Annual Revenue: £${offer.revenue.toLocaleString()}
 `;
             });
 
             content += `
-════════════════════════════════════════════════
-© Senga Cree Coaching - Strategic Business Planning Tool
-════════════════════════════════════════════════`;
+💰 TOTAL ANNUAL REVENUE PROJECTION: £${totalRevenue.toLocaleString()}
 
-            // Download readable version
-            const textBlob = new Blob([content], { type: 'text/plain' });
-            const textUrl = URL.createObjectURL(textBlob);
+═══════════════════════════════════════════════════════════════════
+
+🎯 MONTHLY LAUNCH STRATEGY
+═══════════════════════════════════════════════════════════════════
+`;
+
+            data.monthlyPlans.forEach(plan => {
+                if (plan.primaryOffer || plan.secondaryOffer || plan.passiveOffer || plan.notes) {
+                    content += `
+${plan.month}:
+├─ Primary Offer: ${plan.primaryOffer}
+├─ Secondary Offer: ${plan.secondaryOffer}
+├─ Passive/Ongoing: ${plan.passiveOffer}
+└─ Strategy Notes: ${plan.notes}
+`;
+                }
+            });
+
+            content += `
+═══════════════════════════════════════════════════════════════════
+
+📅 90-DAY STRATEGIC FOCUS
+═══════════════════════════════════════════════════════════════════
+`;
+
+            data.strategy.forEach(month => {
+                if (month.financial || month.delivery || month.creating || month.selling || month.audience) {
+                    content += `
+${month.month}:
+────────────────────────────────────────────────────────────────
+💰 Financial Goal: ${month.financial}
+📦 Delivery Focus: ${month.delivery}
+🔨 Creating Priority: ${month.creating}
+💼 Selling Strategy: ${month.selling}
+📈 Audience Growth: ${month.audience}
+
+`;
+                }
+            });
+
+            content += `═══════════════════════════════════════════════════════════════════
+
+⏰ WEEKLY STRUCTURE DESIGN
+═══════════════════════════════════════════════════════════════════
+`;
+
+            data.weeklyStructure.forEach(day => {
+                if (day.morning || day.afternoon) {
+                    content += `
+${day.day}:
+🌅 Morning Focus: ${day.morning}
+🌇 Afternoon/Evening Focus: ${day.afternoon}
+`;
+                }
+            });
+
+            content += `
+═══════════════════════════════════════════════════════════════════
+© Senga Cree Coaching - Strategic Business Planning Tool
+This document contains your personalized quarterly business strategy
+═══════════════════════════════════════════════════════════════════`;
+
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Quarterly-Business-Plan-${data.timestamp.replace(/\//g, '-')}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            closeDownloadModal();
+        }
+
+        function downloadSimpleText() {
+            const data = collectAllData();
+            const totalRevenue = data.offers.reduce((sum, offer) => sum + offer.revenue, 0);
             
-            const textLink = document.createElement('a');
-            textLink.href = textUrl;
-            textLink.download = `quarterly-business-plan-readable-${new Date().toISOString().split('T')[0]}.txt`;
-            document.body.appendChild(textLink);
-            textLink.click();
-            document.body.removeChild(textLink);
-            URL.revokeObjectURL(textUrl);
+            let content = `MY QUARTERLY BUSINESS PLAN
+Created: ${data.timestamp}
+
+REVENUE GOAL: £${totalRevenue.toLocaleString()}
+
+MY OFFERS:
+`;
+
+            data.offers.forEach(offer => {
+                content += `• ${offer.name} - £${offer.price} x ${offer.frequency} = £${offer.revenue.toLocaleString()}\n`;
+            });
+
+            content += `\nMONTHLY LAUNCH PLAN:\n`;
+            data.monthlyPlans.forEach(plan => {
+                if (plan.primaryOffer || plan.secondaryOffer || plan.passiveOffer) {
+                    content += `${plan.month}: ${plan.primaryOffer}${plan.secondaryOffer ? ', ' + plan.secondaryOffer : ''}${plan.passiveOffer ? ', ' + plan.passiveOffer : ''}\n`;
+                }
+            });
+
+            content += `\n90-DAY STRATEGY:\n`;
+            data.strategy.forEach(month => {
+                if (month.financial || month.delivery || month.creating || month.selling || month.audience) {
+                    content += `${month.month}: Financial: ${month.financial}, Delivery: ${month.delivery}, Creating: ${month.creating}\n`;
+                }
+            });
+
+            content += `\nWEEKLY STRUCTURE:\n`;
+            data.weeklyStructure.forEach(day => {
+                if (day.morning || day.afternoon) {
+                    content += `${day.day}: Morning: ${day.morning}, Afternoon: ${day.afternoon}\n`;
+                }
+            });
+
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `My-Business-Plan-${data.timestamp.replace(/\//g, '-')}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            closeDownloadModal();
+        }
+
+        function downloadSpreadsheet() {
+            const data = collectAllData();
+            
+            let csv = `Quarterly Business Plan,Generated: ${data.timestamp}\n\n`;
+            
+            csv += `OFFERS & REVENUE\n`;
+            csv += `Offer Name,Price (£),Frequency,Annual Revenue (£)\n`;
+            data.offers.forEach(offer => {
+                csv += `"${offer.name}",${offer.price},${offer.frequency},${offer.revenue}\n`;
+            });
+            
+            const totalRevenue = data.offers.reduce((sum, offer) => sum + offer.revenue, 0);
+            csv += `TOTAL,,,${totalRevenue}\n\n`;
+            
+            csv += `MONTHLY LAUNCHES\n`;
+            csv += `Month,Primary Offer,Secondary Offer,Passive Offer,Notes\n`;
+            data.monthlyPlans.forEach(plan => {
+                csv += `${plan.month},"${plan.primaryOffer}","${plan.secondaryOffer}","${plan.passiveOffer}","${plan.notes}"\n`;
+            });
+            
+            csv += `\n90-DAY STRATEGY\n`;
+            csv += `Month,Financial Goal,Delivery Focus,Creating Priority,Selling Strategy,Audience Growth\n`;
+            data.strategy.forEach(month => {
+                csv += `${month.month},"${month.financial}","${month.delivery}","${month.creating}","${month.selling}","${month.audience}"\n`;
+            });
+            
+            csv += `\nWEEKLY STRUCTURE\n`;
+            csv += `Day,Morning Focus,Afternoon Focus\n`;
+            data.weeklyStructure.forEach(day => {
+                csv += `${day.day},"${day.morning}","${day.afternoon}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Business-Plan-Spreadsheet-${data.timestamp.replace(/\//g, '-')}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            closeDownloadModal();
         }
 
         function removeOffer(button) {
